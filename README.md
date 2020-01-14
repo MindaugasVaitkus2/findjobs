@@ -41,9 +41,4 @@ Examples will be added to this section shortly...
 
 ## Documentation
 
-See the `docs/` directory for additional information on package dependencies, current version, and more.
-
-
-
-
-
+See the `docs/` directory for additional info such as package dependencies and development version.
