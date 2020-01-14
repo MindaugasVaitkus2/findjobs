@@ -7,7 +7,7 @@ import requests
 import urllib.requests
 from bs4 import BeautifulSoup as bs
 
-class Indeed:
+class indeed:
 
 	def __init__(self, city, state, field, keywords=[], postings=100):
 		""" aggregrate results from indeed.com """
