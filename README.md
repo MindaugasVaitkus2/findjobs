@@ -31,22 +31,17 @@ $ cd findjobs
 $ python3 setup.py install
 ```
 
+## Configuration
+
+Configuration will be added to this section shortly...
+
 ## Examples
 
 Examples will be added to this section shortly...
 
-## Requirements
+## Documentation
 
-Python libraries necessary for this package:
-
-```
-bs4==0.0.1
-requests==2.22.0
-```
-
-These dependencies are often included with site-package distrubtions included with IDEs
-and markdown applications, regardless of operating system or mobile device.
-
+See the `docs/` directory for additional information on package dependencies, current version, and more.
 
 
 
