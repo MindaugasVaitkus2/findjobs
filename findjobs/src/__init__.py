@@ -1,1 +1,1 @@
-from .indeed import Indeed
+from .indeed import indeed
