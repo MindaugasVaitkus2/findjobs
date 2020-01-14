@@ -4,7 +4,6 @@
 import math
 import lxml
 import requests
-import urllib.requests
 from bs4 import BeautifulSoup as bs
 
 class indeed:
@@ -19,6 +18,8 @@ class indeed:
         self.url ='https://www.indeed.com/jobs?q={}&l={}%2C+{}'
 		# create blank list to store results
 		self.jobs = []
+		# run search
+		self.search()
     def location(self):
         # returns state abbreviation
         state_dict = {
@@ -98,6 +99,19 @@ class indeed:
         else:
             soup = bs(page.text, 'lxml')
             return soup
+	def filter(self, raw):
+        # filters jobs based on keyword parameters
+        if len(self.keywords) == 0:
+            return raw
+        matches = []
+        for job in raw:
+            job_title = job[0].lower()
+            for key in self.keywords:
+                check = (key in job_title)
+                if check is True:
+                    matches.append(job)
+                    break
+        return matches
 	def search(self):
 		# function to search for job postings
 		postings = []
@@ -141,16 +155,3 @@ class indeed:
                 if job not in self.jobs:
                     self.jobs.append(job)
             return results
-    def filter(self, raw):
-        # filters jobs based on keyword parameters
-        if len(self.keywords) == 0:
-            return raw
-        matches = []
-        for job in raw:
-            job_title = job[0].lower()
-            for key in self.keywords:
-                check = (key in job_title)
-                if check is True:
-                    matches.append(job)
-                    break
-        return matches
