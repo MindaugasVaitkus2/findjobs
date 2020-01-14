@@ -3,6 +3,8 @@
 
 import os
 import sys
+import time
+import datetime
 import urllib.requests
 
 class Menu:
@@ -167,4 +169,104 @@ def jobs_found():
         return search_results
     else:
         return None
+"""
+
+"""
+def aggregate_results(jobs):
+	""" combines job postings in single line for file storage """
+	results = []
+	for job in jobs:
+		line = []
+		line.extend([str(job[0]), ', '])
+		line.append(str(job[1]))
+		if len(str(job[2])) > 0:
+			line.extend([', ', str(job[2])])
+		results.append(line)
+	return results
+
+
+def main():
+	""" main module """
+	clear_scr()
+	# check for valid internet connection
+	check_internet()
+	# print header and main menu
+	program_header()
+	inputs = boot_menu()
+	job_search = JobSearch(inputs[0], inputs[1], inputs[2], inputs[3])
+	results = job_search.jobs
+	# print search results
+	print_results(jobs)
+	# export results
+	results = aggregate_results(jobs)
+	export_results(results)
+	if 
+
+
+
+
+
+
+def main():
+	""" main function to run iquit.py """
+	# get information about user and system
+	os_type = sys.platform
+	pyth_version = str(sys.version)[:5]
+	current_date = datetime.date.today().strftime('%d/%m/%Y')
+	# if type is linux or windows, print welcome message
+	if os_type == 'linux' or os_type == 'windows':
+		# clears screen & prints welcome message
+		clear_scr()
+		print('\n{} ~ python {}\n{}'.format(__title__, pyth_version, __description__))
+	# get parameters for job search
+	usr = parameters()
+	config = options()
+	# print search update letting user know program is running
+	print('\nrunning search for "{}" jobs in {}, {}'.format(usr[2].lower(), usr[0].lower(), usr[1].lower()))
+	print('please wait...')
+	# search for jobs on indeed.com
+	jobs = []
+	search = indeed(usr[0], usr[1], usr[2], usr[3])
+	jobs = jobs + search
+	# remove "please wait" and print # of search results
+	flush_scr()
+	print('matches found: {}\n'.format(len(jobs)))
+	# add more job sites to search here if need be
+	# create list of job results for iteration
+	job_results = results(jobs, 'Indeed')
+	# print search results to terminal window
+	output(job_results)
+	# check for duplicates if filename given and export results
+	filename = config[0]
+	filepath = config[1]
+	yesno = config[2]
+	if filename != '' and filename is not None:
+		print('\nexporting search results to "{}'.format(filename))
+		if yesno == 'yes':
+			new_jobs = duplicates(filepath, job_results)
+			attempt = export(filepath, new_jobs)
+		else:
+			attempt = export(filepath, job_results)
+		if attempt is True:
+			print('search results successfully saved to "{}"'.format(filename))
+			print(format('text files can be found (and should be stored) in the /config directory', 'GRAY'))
+		else:
+			print('an error occured while attempting to export search results to "{}"'.format(filename))
+	print('\nall finished - make sure to copy your results if you elected to ignore file storage!')
+	print('you can exit whenever, otherwise the program will close in 60 seconds - goodbye!\n')
+	time.sleep(60)
+	sys.exit(0)
+
+
+if __name__ == '__main__':
+	main()
+
+
+
+
+# option for exporting search results to additional file
+	print('\nsearch results are automatically appended to the "jobs.txt" file in the config directory')
+	print('to export all search results (including duplicates) to an additional file, please enter the filename below:')
+	print(format_string('(make sure to include full filepath if creating new file, otherwise leave blank to ignore)', 'GRAY'))
+	filepath = input('$ ~ '
 """
