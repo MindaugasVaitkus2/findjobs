@@ -8,23 +8,19 @@ import urllib.requests
 from bs4 import BeautifulSoup as bs
 
 class indeed:
-
+	""" search indeed.com for jobs """
 	def __init__(self, city, state, field, keywords=[], postings=100):
-		""" aggregrate results from indeed.com """
 		self.city = city
 		self.state = state
 		self.field = field
 		self.keywords = keywords
         self.postings = postings
-
         # url to connect to indeed.com
         self.url ='https://www.indeed.com/jobs?q={}&l={}%2C+{}'
-
 		# create blank list to store results
 		self.jobs = []
-    
     def location(self):
-        """ returns state abbreviation """
+        # returns state abbreviation
         state_dict = {
             'Alabama': 'AL',
             'Alaska': 'AK',
@@ -91,9 +87,8 @@ class indeed:
 				    if value == self.state:
 					    return key
 	    return 'NA'
-
     def connect(self):
-        """ returns BeautifulSoup object for url """
+        # returns BeautifulSoup object for url
         state = self.location(self.state)
         url = self.url.format(self.field.lower(), self.city.title(), state)
         page = requests.get(url)
@@ -103,9 +98,8 @@ class indeed:
         else:
             soup = bs(page.text, 'lxml')
             return soup
-
 	def search(self):
-		""" function to search for job postings """
+		# function to search for job postings
 		postings = []
 		cache = []
         # number of web pages to search
@@ -147,9 +141,8 @@ class indeed:
                 if job not in self.jobs:
                     self.jobs.append(job)
             return results
-
     def filter(self, raw):
-        """ filters jobs based on keyword parameters """
+        # filters jobs based on keyword parameters
         if len(self.keywords) == 0:
             return raw
         matches = []
