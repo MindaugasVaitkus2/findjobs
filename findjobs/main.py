@@ -5,7 +5,12 @@ import os
 import sys
 import time
 import datetime
-import urllib.requests
+
+class config:
+	""" configuration of parameters """
+	def __init__.py(self):
+		
+	
 
 class Menu:
 
