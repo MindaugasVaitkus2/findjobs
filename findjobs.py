@@ -1,444 +1,430 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+"""
+FindJobs ~ Job Search Optimization (Python 3.6+, Unix/Mac/iOS/Win)
+------------------------------------------------------------------
+Search job boards in seconds for listings matching your criteria.
+Created by Colin Gallagher
+"""
 
 import os
 import sys
-import math
-import lxml
+import csv
 import time
 import datetime
+import argparse
 import configparser
+from pathlib import Path
+
 import requests
+import configparser
+from pathlib import Path
 from bs4 import BeautifulSoup as bs
+from uszipcode import SearchEngine, Zipcode
 
+__module__ = 'FindJobs'
+__short__ = 'Job Search Optimization'
+__long__ = 'Search job boards in seconds for listings matching your criteria.'
+__author__ = 'Colin Gallagher'
+__repo__ = 'https://github.com/colin-gall/findjobs'
+__version__ = '0.0.8'
 
-__version__ = '0.0.4'
+__os__ = os.name
+__platform__ = sys.platform
+__path__ = str(Path.home())
+__python__ = sys.version[:5]
 
+class COLORS:
+	reset='\033[0m'
+	bold='\033[01m'
+	underline='\033[04m'
+	red='\033[91m'
+	green='\033[92m'
+	yellow='\033[93m'
+	pink='\033[95m'
+	cyan='\033[96m'
+	grey='\033[90m'
+	white='\033[97m'
 
-class FindJobs:
-	"""FindJobs search program setup & configuration"""
+def clear_screen():
+	"""Clears terminal window screen."""
+	if __platform__ == 'windows':
+		os.system('cls')
+	else:
+		os.system('clear')
 
-	opsys = os.name
-	pythv = sys.version[:5]
-	inifile = 'config.ini'
+def print_header(format=[COLORS.red, COLORS.bold], color=True):
+	"""Prints header message upon program startup."""
+	header = 'FindJobs {} ~ Job Search Optimization'.format(__version__)
+	if color:
+		header = format[0] + format[1] + header + COLORS.reset + ' (Python {}, {})'.format(__python__, __platform__.capitalize())
+	clear_screen()
+	print(header)
+	print('------------------------------------------------------------------')
 
-	#default settings for program
-	settings = {
-		'DEFAULT': {},
-		'Indeed': {'pages':100},
-		'Monster': {}}
+def print_info(job_info, counter, format=[COLORS.green, COLORS.cyan, COLORS.grey], color=True):
+	"""Prints single search result with color if formatting if desired."""
+	if color:
+		job_info['Title'] = format[0] + job_info['Title'] + COLORS.reset
+		#job_info['Company'] = COLORS.white + job_info['Company'] + COLORS.reset
+		if job_info['Location'] is not None and job_info['Location'] != '':
+			job_info['Location'] = format[2] + job_info['Location'] + COLORS.reset
+		counter = format[1] + str(counter) + COLORS.reset
+	line = ', '.join(job_info.values())
+	num = '[' + counter + ']'
+	print(num + ' ' + line)
 
-	# checks Python version
-	if pythv[0] != '3' or int(pythv[2]) < 6:
-		print("You need to install Python 3.6.1 or later to run this program.")
-		sys.exit()
+def title_input():
+	"""Prompts user for job title / keyword input."""
+	response = input('~ Enter job title, job type, or professional field related to desired position: ')
+	return response
 
-	#Checks for configuration file
-	if os.path.isfile(inifile) is True:
-		config = configparser.ConfigParser()
-		config.read(inifile)
-		default = dict(config['DEFAULT'])
-		for key, value in default.items():
-			settings['DEFAULT'][key] = value
-		for s in config.sections():
-			if s not in settings.keys():
-				settings[s] = {}
-			parameters = dict(config[s])
-			for key, value in parameters.items():
-				settings[s][key] = value
+def area_input():
+	"""Prompts user for city or zipcode input."""
+	response = input('~ Enter name or zipcode (if USA) of city corresponding to desired location: ')
+	return response
 
-	# formats for menu interface
-	colors = {'blue':'\033[95m', 'green':'\033[92m', 'gray':'\033[2m', 'break':'\033[0m'}
-	clrscr = {'linux':'clear', 'windows':'cls', 'ios':'clear'}
-	fshscr = ['\x1b[1A', '\x1b[2K']
-	cmdlist = {
-		'search': 'Exit menu and run the job search program',
-		'config': 'Information on configuring search parameters',
-		'readme': 'Project description from README.md file',
-		'license': 'Information regarding the project LICENSE',
-		'github': 'Link to development repository on github',
-		'contact': 'Contact information for the author of the project',
-		'main': 'Return to main menu screen to run program',
-		'quit': 'Shutdown and exit the program'}
-
-
-	def run(self):
-		"""Runs FindJobs program"""
-
-		if self.opsys == 'nt':
-			os.system('cls')
-		else:
-			os.system('clear')
-
-		# header for welcome message
-		header = self.colors.get('blue') + '\nFindJobs --> Created by Colin Gallagher' + self.colors.get('break') + self.colors.get('gray')
-		header += '\nPython {} (findjobs.py, version {}) [https://github.com/colin-gall/findjobs]'.format(self.pythv, __version__)
-		header += '\nLocal time {}\n'.format(time.ctime(time.time())) + self.colors.get('break')
-		print(header)
-
-		if len(dict(self.settings['DEFAULT'])) < 4:
-			self.fields()
-
-		city = self.settings['DEFAULT']['city']
-		state = self.settings['DEFAULT']['state']
-		title = self.settings['DEFAULT']['title']
-		keywords = list(self.settings['DEFAULT']['keywords'])
-
-		response = input("Hit any key to run searcb, or type 'cmd' for command list ~ ")
-		if response == 'cmd':
-			self.commands()
-
-		bar = [self.settings['DEFAULT']['city'], self.settings['DEFAULT']['state'], self.settings['DEFAULT']['title']]
-		print("\nSearching for '{}'jobs in {}, {}\nPlease wait...".format(bar[2], bar[0], bar[1]))
-		start = float(time.time())
-
-		# run main search program
-		results = self.search()
-
-		duration = round(float(time.time() - start), 2)
-		print("\nProgram has finished running [{} seconds]".format(duration))
-		matches = 0
-		for site, jobs in results.items():
-			matches += len(jobs)
-		print("Matches found: {}\n".format(matches))
-
-		if self.opsys == 'posix':
-			format = [self.colors.get('green'), self.colors.get('gray'), self.colors.get('break')]
-		else:
-			format = ['', '', '']
-		counter = 1
-		for site, jobs in results.items():
-			print("     Job search results for {}:\n".format(site))
-			for job in jobs:
-				line = "     ({}) ".format(counter)
-				line += format[0] + job[0] + format[2] + ' - ' + job[1]
-				if job[2] != '':
-					line += format[1] + ' [{}]'.format(job[2]) + format[2]
-				print(line)
-				counter += 1
-
-		response = input("\nSave search results to a new text file (type 'yes' or 'no') ~ ").lower()
-		if response == 'yes' or response == 'y':
-			name = input("Enter name for text file to be created ~ ")
-			if name[len(name)-4:] != '.txt':
-				name = name + '.txt'
-			with open(name, 'w') as f:
-				for site, jobs in results.items():
-					source = "[{}]".format(site.upper())
-					f.write(source + '\n')
-					for job in jobs:
-						line = job[0] + ' - ' + job[1]
-						if job[2] != '':
-							line += ' - ' + job[2]
-						f.write(line + '\n')
-			print("Results saved to text file '{}'".format(name))
-
-		print("\nNothing more to do here. Good luck!\n")
-		sys.exit()
-
-	def install(self):
-		"""Creates new configuration file"""
-
-		conf = configparser.ConfigParser()
-		for key, value in self.settings.items():
-			conf[key] = value
-		with open(self.inifile, 'w') as f:
-			conf.write(f)
-
-	def fields(self):
-		"""Input fields for search parameters"""
-
-		city = input("Name of city or town (will find listings in 25-50 mile radius) ~ ")
-		self.settings['DEFAULT']['city'] = city.lower()
-		state = input("Name or abbreviation of state (must be in USA) ~  ")
-		self.settings['DEFAULT']['state'] = state.lower()
-		title = input("Job title or professional field (i.e. 'finance' or 'financial analyst') ~ ")
-		self.settings['DEFAULT']['title'] = title.lower()
-		keywords = input("Additional keywords (seperate with commas or leave blank to ignore) ~ ")
-
-		if keywords is not None and keywords != '':
-			keywords = keywords.split(',')
-			for i in range(len(keywords)):
-				keywords[i] = keywords[i].strip().lower()
-		else:
-			keywords = []
-		self.settings['DEFAULT']['keywords'] = keywords
-
-	def commands(self, code=0):
-		"""Actions based on user command"""
-
-		print('\n')
-		if self.opsys == 'posix':
-			line = self.colors.get('green') + "{} --> {}" + self.colors.get('break')
-		else:
-			line = "{} --> {}"
-		for key, value in cmdlist.items():
-			print(line.format(key, value))
-
-		cmd = input("\nPlease enter a command ~ ")
-
-		if cmd == 'search':
-			return
-		elif cmd == 'config':
-			self.help()
-			self.commands(1)
-		elif cmd == 'readme':
-			if os.path.exists('README.md'):
-				with open('README,md', 'r') as f:
-					r = f.read()
-					print(r)
-			else:
-				print("~ Unable to locate README.md file")
-			self.commands(1)
-		if cmd == 'license':
-			if os.path.exists('LICENSE'):
-				with open('LICENSE', 'r') as f:
-					l = f.read()
-					print(l)
-			else:
-				print("~ GNU Affero General Public License v3.0")
-			self.commands(1)
-		elif cmd == 'github':
-			print('~ https://github.com/colin-gall/findjobs')
-			self.commands(1)
-		elif cmd == 'contact':
-			print('~ colin gallagher (colin.gall@outlook.com)')
-			self.commands(1)
-		elif cmd == 'quit':
-			print('~ exiting program...goodbye')
-			sys.exit()
-		else:
-			print('~ command not recognized...please try again')
-			self.commands(0)
-
-	def search(self):
-		"""Main search program"""
-
-		city = self.settings['DEFAULT']['city']
-		state = self.settings['DEFAULT']['state']
-		title = self.settings['DEFAULT']['title']
-		keywords = self.settings['DEFAULT']['keywords']
-
-		sites = self.settings.keys()
-		boards = JobBoards(city, state, title, keywords)
-
-		pages = int(self.settings['Indeed']['pages'])
-		jobs = boards.search(pages)
-
-		return jobs
-
-	def help(self):
-		"""Help & information"""
-
-		print('''
-		FindJobs use customized search fields for finding the listings you need. These search fields can be set
-		in the ~config.ini~ file located in the parent directory of the ~findjobs~ package. Once set, you won't
-		need to enter your custom fields when running the script in the future.
-
-		Any custom search parameters stored in the configuration file can always be changed later, or you can elect to
-		create your own configuration file. Additionally, you can forgo using a configuration file altogether and instead
-		will be prompted to enter your search fields upon running the script each time. If you decide to create your own
-		configuration file, or copy the ~config.ini~ from the development repository, make sure the configuration file can
-		be found in the current working directory when this script is run.
-		''')
-
-class JobBoards:
-	"""Search job boards for recent listings"""
-
-	def __init__(self, city, state, title, keywords=[]):
-		"""Class.__init__"""
-
-		self.city = city.capitalize()
-		self.state = state.capitalize()
-		self.title = title.capitalize()
-		self.keywords = keywords
-
+def keywords_input():
+	"""Prompts user for keywords for filtering search results."""
+	response = input('~ Enter additional keywords to search for (seperated by comma; leave blank to ignore): ')
+	if response is None or response.strip() == '':
+		return None
+	else:
+		keywords = response.split(',')
 		for k in range(len(keywords)):
-			keywords[k] = keywords[k].capitalize()
+			keywords[k] = keywords[k].strip()
+		return keywords
+	return response
 
-	def search(self, pages=100):
-		"""Aggregate job board search results"""
+def error_message():
+	"""Prints error message if user turns off output & doesn't call script with args."""
+	print('''
+	~ ~ ~
+	FindJobs needs search parameters such as job title, area identifier, and optional keywords to run properly.
+	Since you elected to shut off output to terminal, the program's ability to ask you to input the search parameters
+	has been disabled. If you would like to shut off output and still run FindJobs, please pass the search parameters
+	as system arguments when running the script from the command line (run '$ python3 findjobs.py -h' for more info).
+	~ ~ ~
+	''')
+	sys.exit(1)
 
-		jobs = {}
-
-		try:
-			indeed = self.indeed(pages)
-			jobs['Indeed'] = indeed
-		except:
-			print("Unable to search indeed.com for job postings")
-
-		#try:
-			#monster = self.monster()
-			#jobs['Monster'] = monster
-		#except:
-			#print("Unable to search monster.com for job postings")
-
-		return jobs
-
-	def connect(self, url):
-		"""Returns bs4 object"""
-
-		page = requests.get(url)
-		if page.status_code != 200:
-			print('Unable to connect to {}'.format(url))
-			return None
+def read_file(filename):
+	"""Reads text file if user elects to ignore old search results"""
+	if os.path.isfile(filename) is False:
+		return None
+	else:
+		file_contents = []
+		if filename[len(filename)-4:] == '.csv':
+			with open(filename, 'r', newline='') as f:
+				reader = csv.reader(f, delimiter=' ')
+				for row in reader:
+					contents = ', '.join(row)
+					file_contents.append(contents)
 		else:
-			soup = bs(page.text, 'lxml')
-			return soup
+			with open(filename, 'r') as f:
+				for line in f.readlines():
+					info = line.split(', ')
+					contents = {'Title':info[0], 'Company':info[1], 'Location':info[2]}
+					file_contents.append(contents)
+		return file_contents
 
-	def filter(self, raw):
-		"""Filters jobs based on keyword parameters"""
+def write_file(filename, results):
+	"""Writes search results to text file."""
+	if filename[len(filename)-4:] != '.txt' and filename[len(filename)-4:] != '.csv':
+		return False
+	else:
+		if filename[len(filename)-4:] == '.csv':
+			with open(filename, 'w', newline='') as f:
+				writer = csv.writer(f, delimiter=' ')
+				for job in results:
+					writer.writerow([job['Title'], job['Company'], job['Location']])
+		else:
+			with open(filename, 'a') as f:
+				for job in results:
+					line = ', '.join(job.values())
+					f.write(line + '\n')
+	return True
 
-		if len(self.keywords) == 0:
-			return raw
-		matches = []
-		for job in raw:
-			job_title = job[0].lower()
-			for key in self.keywords:
-				check = (key in job_title)
-				if check is True:
-					matches.append(job)
+def check_connection():
+	"""Checks for valid internet connection."""
+	url = 'https://google.com'
+	page = requests.get(url)
+	if page.status_code != 200:
+		return False
+	return True
+
+def scrape_website(url):
+	"""Returns bs4 object for url."""
+	page = requests.get(url)
+	if page.status_code != 200:
+		print('Unable to connect to {}'.format(url))
+		return None
+	else:
+		soup = bs(page.text, 'lxml')
+		return soup
+
+def location_info(area_id):
+	"""Returns city and/or state based on city name or zip code."""
+	engine = SearchEngine(simple_zipcode=True)
+	try:
+		location = engine.by_zipcode(area_id)
+		city = location.city
+		state = location.state
+	except ValueError:
+		city = area_id.title()
+		location = engine.by_city(city, sort_by=Zipcode.population)
+		state = location[0].state_abbr
+	finally:
+		if city is None or state is None:
+			city = area_id.title()
+			location = engine.by_city(city, sort_by=Zipcode.population)
+			state = location[0].state_abbr
+	return city, state
+
+def cleanup_contents(contents):
+	"""Cleans up formatting of job post information."""
+	if contents is None or len(contents) == 0:
+		contents = ''
+	elif (contents[:1]+contents[len(contents)-1:]) == '()' or (contents[:1]+contents[len(contents)-1:]) == '[]':
+		contents = contents[1:len(contents)-1]
+	return contents
+
+def remove_priors(search_results, prior_results, output):
+	"""Checks for duplicate search results in old searches."""
+	new_results = []
+	for job in search_results:
+		if job not in prior_results:
+			new_results.append(job)
+	if len(new_results) > 0:
+		if output is True:
+			removals = int(len(search_results) - len(new_results))
+			print('~ Removed {} duplicate listings from search results.'.format(removals))
+		return new_results
+	else:
+		return search_results
+
+def remove_duplicates(job_list_1, job_list_2):
+	"""Removes duplicate listings across job board sites."""
+	combined_results = []
+	for job in job_list_1:
+		if job not in combined_results:
+			combined_results.append(job)
+	for job in job_list_2:
+		if job not in combined_results:
+			combined_results.append(job)
+	return combined_results
+
+def filter_keywords(search_results, keywords, output=True):
+	"""Removes listings from results not containing any keywords."""
+	if keywords is None or len(keywords) == 0:
+		return search_results
+	else:
+		filtered_results = []
+		for job in search_results:
+			for key in keywords:
+				if key in job['Title'] or key in job['Company'] or key in job['Location']:
+					filtered_results.append(job)
 					break
-		return matches
-
-	def location(self, state):
-		"""Returns state name"""
-
-		state_dict = {
-			'Alabama': 'AL',
-			'Alaska': 'AK',
-			'Arizona': 'AZ',
-			'Arkansas': 'AR',
-			'California': 'CA',
-			'Colorado': 'CO',
-			'Connecticut': 'CT',
-			'Delaware': 'DE',
-			'District of Columbia': 'DC',
-			'Florida': 'FL',
-			'Georgia': 'GA',
-			'Hawaii': 'HI',
-			'Idaho': 'ID',
-			'Illinois': 'IL',
-			'Indiana': 'IN',
-			'Iowa': 'IA',
-			'Kansas': 'KS',
-			'Kentucky': 'KY',
-			'Louisiana': 'LA',
-			'Maine': 'ME',
-			'Maryland': 'MD',
-			'Massachusetts': 'MA',
-			'Michigan': 'MI',
-			'Minnesota': 'MN',
-			'Mississippi': 'MS',
-			'Missouri': 'MO',
-			'Montana': 'MT',
-			'Nebraska': 'NE',
-			'Nevada': 'NV',
-			'New Hampshire': 'NH',
-			'New Jersey': 'NJ',
-			'New Mexico': 'NM',
-			'New York': 'NY',
-			'North Carolina': 'NC',
-			'North Dakota': 'ND',
-			'Northern Mariana Islands':'MP',
-			'Ohio': 'OH',
-			'Oklahoma': 'OK',
-			'Oregon': 'OR',
-			'Palau': 'PW',
-			'Pennsylvania': 'PA',
-			'Puerto Rico': 'PR',
-			'Rhode Island': 'RI',
-			'South Carolina': 'SC',
-			'South Dakota': 'SD',
-			'Tennessee': 'TN',
-			'Texas': 'TX',
-			'Utah': 'UT',
-			'Vermont': 'VT',
-			'Virgin Islands': 'VI',
-			'Virginia': 'VA',
-			'Washington': 'WA',
-			'West Virginia': 'WV',
-			'Wisconsin': 'WI',
-			'Wyoming': 'WY',
-		}
-
-		states = dict(map(reversed, state_dict.items()))
-
-		if state in states.keys():
-			return state.upper()
+				elif key.capitalize() in job['Title'] or key.capitalize() in job['Company'] or key.capitalize() in job['Location']:
+					filtered_results.append(job)
+					break
+		if len(filtered_results) == 0:
+			if output is True:
+				print('~ No listings containing keywords were found. Returning full list.')
+			return search_results
 		else:
-			if state in states.values():
-				for key, value in states.items():
-					if value == state:
-						return key
-		return 'NA'
+			if output is True:
+				print('~ Search results contained {} listings matching one or more keywords.'.format(len(filtered_results)))
+			return filtered_results
 
-	def indeed(self, pages=100):
-		"""Searches indeed.com for jobs"""
+def search_indeed(job_title, city, state, pages=10):
+	"""Search indeed.com for jobs matching criteria."""
+	indeed_url = 'https://www.indeed.com/jobs?q={}&l={}%2C+{}'
+	job_title = job_title.replace('-', '+')
+	city = city.replace('-', '+')
+	# url for indeed.com (formatted in 'connect' function)
+	start_url = indeed_url.format(job_title, city, state)
+	page_url = start_url + '&start={}'
+	#blank lists to hold job posts
+	jobs_found = []
+	# run search query
+	for page in range(pages):
+		if page == 0:
+			soup = scrape_website(start_url)
+		else:
+			page_num = int(page*10)
+			soup = scrape_website(page_url.format(page_num))
+		listings = soup.find_all('div', {'class':'title'})
+		for position in listings:
+			elem = position.find('a')
+			try:
+				title = elem.get_text().strip()
+				company = position.find_next_sibling('div', {'class':'sjcl'}).find_all('div')[0].get_text().strip().split('\n')[0]
+			except:
+				continue
+			try:
+				location = position.find_next_sibling('div', {'class':'sjcl'}).find_all('div')[1].nextSibling.nextSibling.get_text().strip().split('\n')[0]
+			except:
+				location = ''
+			location = cleanup_contents(location)
+			job_post_info = {
+				'Title':title,
+				'Company':company,
+				'Location':location}
+			jobs_found.append(job_post_info)
+	return jobs_found
 
-		# url for indeed.com (formatted in 'connect' function)
-		title = self.title
-		city = self.city.title()
-		state = self.location(self.state)
-		url = 'https://www.indeed.com/jobs?q={}&l={}%2C+{}'.format(title, city, state)
-		soup = self.connect(url)
+def search_monster(job_title, city, state, pages=10):
+	"""Search monster.com for jobs matching criteria."""
+	monster_url = 'https://www.monster.com/jobs/search/?q={}&where={}__2C-{}&intcid=skr_navigation_nhpso_searchMain'
+	# url for monster.com (formatted in 'connect' function)
+	start_url = monster_url.format(job_title, city, state)
+	page_url = start_url + '&stpage=1&page={}'
+	#blank lists to hold job posts
+	jobs_found = []
+	# run search query
+	for page in range(pages):
+		if page == 0:
+			soup = scrape_website(start_url)
+		else:
+			soup = scrape_website(page_url.format(page+1))
+		div = soup.find('div', id='SearchResults')
+		sections = div.find_all('section', {'class':'card-content'})
+		for post in sections:
+			try:
+				title = post.find('h2', {'class':'title'}).get_text().strip()
+				company = post.find('div', {'class':'company'}).get_text().strip()
+			except:
+				continue
+			try:
+				location = post.find('div', {'class':'location'}).get_text().strip()
+			except:
+				location = ''
+			location = cleanup_contents(location)
+			job_post_info = {
+				'Title':title,
+				'Company':company,
+				'Location':location}
+			jobs_found.append(job_post_info)
+	return jobs_found
 
-		postings = []
-		cache = []
-		# number of web pages to search
-		max_jobs = max(min(pages, 100), 20)
-		max_page = math.ceil(max_jobs / 20) - 1
-		for page in range(max_page):
-			if page > 0:
-				num = page * 10
-				url += '&start={}'.format(str(num))
-			postings = []
-			soup = self.connect(url)
-			listings = soup.find_all('div', {'class':'title'})
-			for position in listings:
-				details = []
-				elem = position.find('a')
-				if elem is not None:
-					title = elem.get_text().strip()
-					details.append(title)
-				else:
-					details.append('')
-				info = position.find_next_sibling('div', {'class':'sjcl'})
-				div = info.find_all('div')
-				if len(div) > 0:
-					company = div[0].get_text().strip().split('\n')
-					area = div[len(div)-1].get_text().strip()
-					details.extend([company, area])
-				else:
-					details.extend()
-				details[1] = details[1][0]
-
-				# check to see if area is blank
-				if details[2][:1] == '(' or details[2][:1] == '[':
-					details[2] = details[2][1:len(details[2])]
-				elif details[2] is None or details[2] == 'NA' or details[2] == 'N/A':
-					details[2] == ''
-				duplicate = str(title) + str(company[0])
-
-				# check cache for duplicates
-				if duplicate not in cache:
-					postings.append(details)
-					cache.append(duplicate)
-
-			# filter postings for keywords if provided
-			results = self.filter(postings)
-			return results
-
-		def monster(self):
-			"""Searches monster.com for jobs"""
-			pass
+def findjobs(job_title, area_id, keywords=None, import_file=None, export_file=None, color=True, output=True, pages=10):
+	"""Search job boards for recent listings."""
+	start_time = float(time.time())
+	job_title = job_title.capitalize()
+	city, state = location_info(area_id)
+	state = state.upper()
+	if output is True:
+		print("~ Running search query for jobs matching '{}' in {}, {}".format(job_title, city, state))
+	try:
+		indeed_jobs = search_indeed(job_title, city, state)
+	except:
+		raise Exception('~ Unable to search indeed.com.')
+		indeed_jobs = []
+	try:
+		monster_jobs = search_monster(job_title, city, state)
+	except:
+		raise Exception('~ Unable to search monster.com')
+	start = time.time()
+	search_results = remove_duplicates(indeed_jobs, monster_jobs)
+	end_time = float(time.time())
+	duration = round(end_time- start_time, 2)
+	if search_results is None or len(search_results) == 0:
+		raise Exception('~ Could not find any job posts matching your critera (maybe something went wrong?)')
+		sys.exit()
+	if output is True:
+		print("~ Finished running job search ({} matches found - {} seconds)".format(len(search_results), duration))
+	if keywords is not None and len(keywords) > 0:
+		job_listings = filter_keywords(search_results, keywords, output)
+	else:
+		job_listings = search_results
+	if import_file is not None:
+		if os.path.isfile(import_file) is False:
+			raise Exception('~ Unable to find text file named "{}" in PATH directories.'.format(import_file))
+		imported_jobs = read_file(import_file)
+		job_listings = remove_priors(job_listings, imported_jobs, output)
+	print('------------------------------------------------------------------')
+	if output is True:
+		counter = 1
+		for job in job_listings:
+			print_info(job, counter, color=color)
+			counter += 1
+		print('------------------------------------------------------------------')
+	if export_file is not None:
+		if output is True:
+			print('~ Exporting search results to text file...')
+		check = write_file(export_file, job_listings)
+		if check is True:
+			if output is True:
+				print('~ Search results saved to {}'.format(export_file))
+		else:
+			print('~ Unable to export search results to "{}".'.format(export_file))
+			print('~ Make sure filepath & extension for filetype are both correct next time script is run.')
+		print('------------------------------------------------------------------')
+	if output is True:
+		print("~ Nothing more to do.\n~ To search for more jobs, run the script again.\n")
+	sys.exit()
 
 def main():
-	"""Main function for findjobs.py"""
-
-	program = FindJobs()
-	program.run()
+	"""Main function containing script logic."""
+	print_header()
+	# check for internet connection
+	if check_connection() is False:
+		print('~ Internet connection is needed in order to connect to job sites.')
+		sys.exit(1)
+	# parse in arguments if any are given
+	parser = argparse.ArgumentParser(description=__module__+' '+__version__+' ~ '+__short__)
+	parser.add_argument('-v', '--version', action='version', version='findjobs {}'.format(__version__))
+	parser.add_argument('-c', '--color', action='store_true', dest='color', help='Turn off color formatting for terminal output')
+	parser.add_argument('-o', '--output', action='store_true', dest='output', help='Turn off printing to terminal screen')
+	parser.add_argument('-j', '--job', type=str, dest='job', nargs='+', metavar='JOB', help='Desired job title or keyword(s) related to job type')
+	parser.add_argument('-a', '--area', type=str, dest='area', nargs='+', metavar='AREA', help='Name or zipcode (if USA) of city / town.')
+	parser.add_argument('-k', '--keywords', type=str, dest='keywords', default=None, nargs='+', metavar='KEYS', help='Additional keywords for filtering search results')
+	parser.add_argument('-i', '--import', type=str, dest='impfile', default=None, help='Text or CSV file (including path & extension) for importing past search results')
+	parser.add_argument('-e', '--export', type=str, dest='expfile', default=None, help='Text or CSV file (including path & extension for exporting new search results')
+	args = parser.parse_args()
+	# check arguments for validity
+	if args.job:
+		job_title = '-'.join(args.job)
+	else:
+		if output is False:
+			error_message()
+		else:
+			job_title = title_input()
+	if args.area:
+		area_id = '-'.join(args.area)
+	else:
+		if output is False:
+			error_message()
+		else:
+			area_id = area_input()
+	if args.keywords:
+		keywords = args.keywords
+	else:
+		if output is False:
+			error_message()
+		else:
+			keywords = keywords_input()
+	if args.impfile:
+		import_file = args.impfile
+	else:
+		import_file = None
+	if args.expfile:
+		export_file = args.expfile
+	else:
+		export_file = None
+	if args.color:
+		color = False
+	else:
+		color = True
+	if args.output:
+		output = False
+	else:
+		output = True
+	print('~ Please wait while the program configures the search parameters...')
+	# run job search function
+	findjobs(job_title, area_id, keywords, import_file, export_file, color, output)
 
 if __name__ == '__main__':
 	main()
