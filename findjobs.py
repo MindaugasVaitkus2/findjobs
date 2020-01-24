@@ -2,14 +2,15 @@
 # -*- coding: utf-8 -*-
 
 """
-FindJobs ~ Job Search Optimization
-----------------------------------------------------------------
+FindJobs ~ Job Search Optimization (Python 3.6+, Unix/Mac/iOS/Win)
+------------------------------------------------------------------
 Search job boards in seconds for listings matching your criteria.
 Created by Colin Gallagher
 """
 
 import os
 import sys
+import csv
 import time
 import datetime
 import argparse
@@ -53,16 +54,16 @@ def clear_screen():
 	else:
 		os.system('clear')
 
-def print_header(format=[COLORS.pink, COLORS.bold], color=True):
+def print_header(format=[COLORS.red, COLORS.bold], color=True):
 	"""Prints header message upon program startup."""
 	header = 'FindJobs {} ~ Job Search Optimization'.format(__version__)
 	if color:
 		header = format[0] + format[1] + header + COLORS.reset + ' (Python {}, {})'.format(__python__, __platform__.capitalize())
 	clear_screen()
 	print(header)
-	print('-------------------------------------------------------------------')
+	print('------------------------------------------------------------------')
 
-def print_info(job_info, counter, format=[COLORS.red, COLORS.cyan, COLORS.grey], color=True):
+def print_info(job_info, counter, format=[COLORS.green, COLORS.cyan, COLORS.grey], color=True):
 	"""Prints single search result with color if formatting if desired."""
 	if color:
 		job_info['Title'] = format[0] + job_info['Title'] + COLORS.reset
@@ -76,13 +77,37 @@ def print_info(job_info, counter, format=[COLORS.red, COLORS.cyan, COLORS.grey],
 
 def title_input():
 	"""Prompts user for job title / keyword input."""
-	response = input('~ Enter job title or keyword(s) related to desired position: ')
+	response = input('~ Enter job title, job type, or professional field related to desired position: ')
 	return response
 
 def area_input():
 	"""Prompts user for city or zipcode input."""
-	response = input('~ Enter name or zipcode (if USA) of city to search for jobs: ')
+	response = input('~ Enter name or zipcode (if USA) of city corresponding to desired location: ')
 	return response
+
+def keywords_input():
+	"""Prompts user for keywords for filtering search results."""
+	response = input('~ Enter additional keywords to search for (seperated by comma; leave blank to ignore): ')
+	if response is None or response.strip() == '':
+		return None
+	else:
+		keywords = response.split(',')
+		for k in range(len(keywords)):
+			keywords[k] = keywords[k].strip()
+		return keywords
+	return response
+
+def error_message():
+	"""Prints error message if user turns off output & doesn't call script with args."""
+	print('''
+	~ ~ ~
+	FindJobs needs search parameters such as job title, area identifier, and optional keywords to run properly.
+	Since you elected to shut off output to terminal, the program's ability to ask you to input the search parameters
+	has been disabled. If you would like to shut off output and still run FindJobs, please pass the search parameters
+	as system arguments when running the script from the command line (run '$ python3 findjobs.py -h' for more info).
+	~ ~ ~
+	''')
+	sys.exit(1)
 
 def read_file(filename):
 	"""Reads text file if user elects to ignore old search results"""
@@ -90,19 +115,36 @@ def read_file(filename):
 		return None
 	else:
 		file_contents = []
-		with open(filename, 'r') as f:
-			for line in f.readlines():
-				info = line.split(', ')
-				contents = {'Title':info[0], 'Company':info[1], 'Location':info[2]}
-				file_contents.append(contents)
+		if filename[len(filename)-4:] == '.csv':
+			with open(filename, 'r', newline='') as f:
+				reader = csv.reader(f, delimiter=' ')
+				for row in reader:
+					contents = ', '.join(row)
+					file_contents.append(contents)
+		else:
+			with open(filename, 'r') as f:
+				for line in f.readlines():
+					info = line.split(', ')
+					contents = {'Title':info[0], 'Company':info[1], 'Location':info[2]}
+					file_contents.append(contents)
 		return file_contents
 
 def write_file(filename, results):
 	"""Writes search results to text file."""
-	with open(filename, 'a') as f:
-		for job in results:
-			line = ', '.join(job.values())
-			f.write(line + '\n')
+	if filename[len(filename)-4:] != '.txt' and filename[len(filename)-4:] != '.csv':
+		return False
+	else:
+		if filename[len(filename)-4:] == '.csv':
+			with open(filename, 'w', newline='') as f:
+				writer = csv.writer(f, delimiter=' ')
+				for job in results:
+					writer.writerow([job['Title'], job['Company'], job['Location']])
+		else:
+			with open(filename, 'a') as f:
+				for job in results:
+					line = ', '.join(job.values())
+					f.write(line + '\n')
+	return True
 
 def check_connection():
 	"""Checks for valid internet connection."""
@@ -148,13 +190,19 @@ def cleanup_contents(contents):
 		contents = contents[1:len(contents)-1]
 	return contents
 
-def remove_priors(search_results, prior_results):
+def remove_priors(search_results, prior_results, output):
 	"""Checks for duplicate search results in old searches."""
 	new_results = []
 	for job in search_results:
 		if job not in prior_results:
 			new_results.append(job)
-	return new_results
+	if len(new_results) > 0:
+		if output is True:
+			removals = int(len(search_results) - len(new_results))
+			print('~ Removed {} duplicate listings from search results.'.format(removals))
+		return new_results
+	else:
+		return search_results
 
 def remove_duplicates(job_list_1, job_list_2):
 	"""Removes duplicate listings across job board sites."""
@@ -166,6 +214,29 @@ def remove_duplicates(job_list_1, job_list_2):
 		if job not in combined_results:
 			combined_results.append(job)
 	return combined_results
+
+def filter_keywords(search_results, keywords, output=True):
+	"""Removes listings from results not containing any keywords."""
+	if keywords is None or len(keywords) == 0:
+		return search_results
+	else:
+		filtered_results = []
+		for job in search_results:
+			for key in keywords:
+				if key in job['Title'] or key in job['Company'] or key in job['Location']:
+					filtered_results.append(job)
+					break
+				elif key.capitalize() in job['Title'] or key.capitalize() in job['Company'] or key.capitalize() in job['Location']:
+					filtered_results.append(job)
+					break
+		if len(filtered_results) == 0:
+			if output is True:
+				print('~ No listings containing keywords were found. Returning full list.')
+			return search_results
+		else:
+			if output is True:
+				print('~ Search results contained {} listings matching one or more keywords.'.format(len(filtered_results)))
+			return filtered_results
 
 def search_indeed(job_title, city, state, pages=10):
 	"""Search indeed.com for jobs matching criteria."""
@@ -238,7 +309,7 @@ def search_monster(job_title, city, state, pages=10):
 			jobs_found.append(job_post_info)
 	return jobs_found
 
-def findjobs(job_title, area_id, old_jobs=None, maxjobs=250, color=True, output=True, export=False, pages=10):
+def findjobs(job_title, area_id, keywords=None, import_file=None, export_file=None, color=True, output=True, pages=10):
 	"""Search job boards for recent listings."""
 	start_time = float(time.time())
 	job_title = job_title.capitalize()
@@ -263,76 +334,97 @@ def findjobs(job_title, area_id, old_jobs=None, maxjobs=250, color=True, output=
 		raise Exception('~ Could not find any job posts matching your critera (maybe something went wrong?)')
 		sys.exit()
 	if output is True:
-		print("~ Finished running job search [{} seconds]".format(duration))
-		print("~ Matches found: {}".format(len(search_results)))
-		print('-------------------------------------------------------------------')
-	if len(search_results) > maxjobs:
-		search_results = search_results[0:maxjobs]
-	if old_jobs is not None:
-		search_results = remove_priors(search_results, old_jobs)
+		print("~ Finished running job search ({} matches found - {} seconds)".format(len(search_results), duration))
+	if keywords is not None and len(keywords) > 0:
+		job_listings = filter_keywords(search_results, keywords, output)
+	else:
+		job_listings = search_results
+	if import_file is not None:
+		if os.path.isfile(import_file) is False:
+			raise Exception('~ Unable to find text file named "{}" in PATH directories.'.format(import_file))
+		imported_jobs = read_file(import_file)
+		job_listings = remove_priors(job_listings, imported_jobs, output)
+	print('------------------------------------------------------------------')
 	if output is True:
 		counter = 1
-		for job in search_results:
+		for job in job_listings:
 			print_info(job, counter, color=color)
 			counter += 1
-		print('-------------------------------------------------------------------')
-	if export is not False:
+		print('------------------------------------------------------------------')
+	if export_file is not None:
 		if output is True:
 			print('~ Exporting search results to text file...')
-		write_file(export, search_results)
-		if output is True:
-			print('Search results saved to {}'.format(export))
-			print('-------------------------------------------------------------------')
+		check = write_file(export_file, job_listings)
+		if check is True:
+			if output is True:
+				print('~ Search results saved to {}'.format(export_file))
+		else:
+			print('~ Unable to export search results to "{}".'.format(export_file))
+			print('~ Make sure filepath & extension for filetype are both correct next time script is run.')
+		print('------------------------------------------------------------------')
 	if output is True:
-		print("Nothing more to do.\nTo see more jobs, run the script again.\n")
+		print("~ Nothing more to do.\n~ To search for more jobs, run the script again.\n")
 	sys.exit()
 
 def main():
 	"""Main function containing script logic."""
 	print_header()
+	# check for internet connection
+	if check_connection() is False:
+		print('~ Internet connection is needed in order to connect to job sites.')
+		sys.exit(1)
 	# parse in arguments if any are given
-	parser = argparse.ArgumentParser(description='Job search parameters for main module.')
-	parser.add_argument('-t', '--title', type=str, dest='title', nargs='*', help='Desired job title or keyword(s) related to job type.')
-	parser.add_argument('-a', '--area', type=str, dest='area', nargs='*', help='Name or zipcode (if USA) of city / town.')
-	parser.add_argument('-f', '--file', type=str, dest='file', help='Name of .txt file (including path) containing prior search results.')
-	parser.add_argument('-c', '--color', action='store_true', dest='color', help='Turn off color formatting for terminal output.')
-	parser.add_argument('-o', '--output', action='store_true', dest='output', help='Turn off printing to terminal screen.')
-	parser.add_argument('-e', '--export', dest='export', help='Name of file to export search results to.')
-	parser.add_argument('-m', '--max', type=int, dest='max', help='Maximum number of job posts to return during search.')
+	parser = argparse.ArgumentParser(description=__module__+' '+__version__+' ~ '+__short__)
+	parser.add_argument('-v', '--version', action='version', version='findjobs {}'.format(__version__))
+	parser.add_argument('-c', '--color', action='store_true', dest='color', help='Turn off color formatting for terminal output')
+	parser.add_argument('-o', '--output', action='store_true', dest='output', help='Turn off printing to terminal screen')
+	parser.add_argument('-j', '--job', type=str, dest='job', nargs='+', metavar='JOB', help='Desired job title or keyword(s) related to job type')
+	parser.add_argument('-a', '--area', type=str, dest='area', nargs='+', metavar='AREA', help='Name or zipcode (if USA) of city / town.')
+	parser.add_argument('-k', '--keywords', type=str, dest='keywords', default=None, nargs='+', metavar='KEYS', help='Additional keywords for filtering search results')
+	parser.add_argument('-i', '--import', type=str, dest='impfile', default=None, help='Text or CSV file (including path & extension) for importing past search results')
+	parser.add_argument('-e', '--export', type=str, dest='expfile', default=None, help='Text or CSV file (including path & extension for exporting new search results')
 	args = parser.parse_args()
 	# check arguments for validity
-	if args.title:
-		job_title = '-'.join(args.title)
+	if args.job:
+		job_title = '-'.join(args.job)
 	else:
-		job_title = title_input()
+		if output is False:
+			error_message()
+		else:
+			job_title = title_input()
 	if args.area:
 		area_id = '-'.join(args.area)
 	else:
-		area_id = area_input()
-	if args.file:
-		old_jobs = read_file(args.file)
-		if old_jobs is None:
-			raise Exception('Unable to find text file named "{}" in PATH directories.'.format(args.file))
+		if output is False:
+			error_message()
+		else:
+			area_id = area_input()
+	if args.keywords:
+		keywords = args.keywords
 	else:
-		old_jobs = None
-	if args.max:
-		maxjobs = int(args.max)
+		if output is False:
+			error_message()
+		else:
+			keywords = keywords_input()
+	if args.impfile:
+		import_file = args.impfile
 	else:
-		maxjobs = 250
-	options = [True, True, False]
+		import_file = None
+	if args.expfile:
+		export_file = args.expfile
+	else:
+		export_file = None
 	if args.color:
-		options[0] = False
+		color = False
+	else:
+		color = True
 	if args.output:
-		options[1] = False
-	if args.export:
-		options[2] = args.export
-	# check for internet connection
-	if check_connection() is False:
-		print('Internet connection is needed in order to connect to job sites.')
-		sys.exit(1)
+		output = False
+	else:
+		output = True
 	print('~ Please wait while the program configures the search parameters...')
 	# run job search function
-	findjobs(job_title, area_id, old_jobs, maxjobs=maxjobs, color=options[0], output=options[1], export=options[2])
+	findjobs(job_title, area_id, keywords, import_file, export_file, color, output)
 
 if __name__ == '__main__':
 	main()
