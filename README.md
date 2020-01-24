@@ -1,16 +1,10 @@
-# FindJobs
+# FindJobs ~ Job Search Optimization
 
-Search job boards in seconds for listings matching your criteria
+Search job boards in seconds for listings matching your criteria.
 
-```
-S findjobs
-
-searching for jobs matching "criteria" in new york, ny
-matches found: 3 listings
-
-Project Assistant, The General Company (New York, NY)
-Best Job Ever, Evil Corp. (New York, NY)
-Typical Analyst__, Foo Inc. (Manhattan, NY)
+```bash
+# search for "Financial Analyst" jobs in New York, NY
+$ python3 findjobs.py -j financial analyst -a new york
 ```
 
 Finding a new job is stressful enough, and scrolling through websites for hours only makes the process more difficult. The objective of this Python package is to make your job searching experience at least a little bit easier. Searching all the major job boards for listings matching critera tailored to your needs, forget the hassle and find listings for jobs in different professions or locations, and all in matter of seconds.
@@ -29,7 +23,7 @@ $ pip3 install findjobs
 On Ubuntu / Mint, install via terminal command line:
 ```bash
 $ sudo apt update
-$ sudo apt install python3-dev python3 python3-pip python3-setuptools
+$ sudo apt install python3-dev python3-pip python3-setuptools
 $ sudo pip3 install findjobs
 ```
 On MacOS (i.e. OS X), install via [Homebrew](https://brew.sh/):
