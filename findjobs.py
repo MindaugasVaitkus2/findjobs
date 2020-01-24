@@ -28,7 +28,7 @@ __short__ = 'Job Search Optimization'
 __long__ = 'Search job boards in seconds for listings matching your criteria.'
 __author__ = 'Colin Gallagher'
 __repo__ = 'https://github.com/colin-gall/findjobs'
-__version__ = '0.0.8'
+__version__ = '0.0.9'
 
 __os__ = os.name
 __platform__ = sys.platform
