@@ -316,7 +316,7 @@ def findjobs(job_title, area_id, keywords=None, import_file=None, export_file=No
 	city, state = location_info(area_id)
 	state = state.upper()
 	if output is True:
-		print("~ Running search query for jobs matching '{}' in {}, {}".format(job_title, city, state))
+		print("~ Running search query for jobs matching '{}' in '{}, {}'".format(job_title, city, state))
 	try:
 		indeed_jobs = search_indeed(job_title, city, state)
 	except:
@@ -366,13 +366,8 @@ def findjobs(job_title, area_id, keywords=None, import_file=None, export_file=No
 		print("~ Nothing more to do.\n~ To search for more jobs, run the script again.\n")
 	sys.exit()
 
-def main():
-	"""Main function containing script logic."""
-	print_header()
-	# check for internet connection
-	if check_connection() is False:
-		print('~ Internet connection is needed in order to connect to job sites.')
-		sys.exit(1)
+def get_args():
+	"""Gets system arguments if provided by user."""
 	# parse in arguments if any are given
 	parser = argparse.ArgumentParser(description=__module__+' '+__version__+' ~ '+__short__)
 	parser.add_argument('-v', '--version', action='version', version='findjobs {}'.format(__version__))
@@ -383,8 +378,19 @@ def main():
 	parser.add_argument('-k', '--keywords', type=str, dest='keywords', default=None, nargs='+', metavar='KEYS', help='Additional keywords for filtering search results')
 	parser.add_argument('-i', '--import', type=str, dest='impfile', default=None, help='Text or CSV file (including path & extension) for importing past search results')
 	parser.add_argument('-e', '--export', type=str, dest='expfile', default=None, help='Text or CSV file (including path & extension for exporting new search results')
+	# parse args
 	args = parser.parse_args()
-	# check arguments for validity
+	# check output switch
+	if args.output:
+		output = False
+	else:
+		output = True
+	# check color switch
+	if args.color:
+		color = False
+	else:
+		color = True
+	# check for job title / keyword / field
 	if args.job:
 		job_title = '-'.join(args.job)
 	else:
@@ -392,6 +398,7 @@ def main():
 			error_message()
 		else:
 			job_title = title_input()
+	# check for area identifier
 	if args.area:
 		area_id = '-'.join(args.area)
 	else:
@@ -399,6 +406,7 @@ def main():
 			error_message()
 		else:
 			area_id = area_input()
+	# check for additional keywords
 	if args.keywords:
 		keywords = args.keywords
 	else:
@@ -406,25 +414,32 @@ def main():
 			error_message()
 		else:
 			keywords = keywords_input()
+	# check for import file
 	if args.impfile:
 		import_file = args.impfile
 	else:
 		import_file = None
+	# check for export file
 	if args.expfile:
 		export_file = args.expfile
 	else:
 		export_file = None
-	if args.color:
-		color = False
-	else:
-		color = True
-	if args.output:
-		output = False
-	else:
-		output = True
-	print('~ Please wait while the program configures the search parameters...')
+	# put args in dictionary
+	parameters = [job_title, area_id, keywords, import_file, export_file, color, output]
+	return parameters
+
+def main():
+	"""Main function containing script logic."""
+	print_header()
+	# check for internet connection
+	if check_connection() is False:
+		print('~ Internet connection is needed in order to connect to job sites.')
+		sys.exit(1)
+	# get args from parser if possible
+	sysargs = get_args()
 	# run job search function
-	findjobs(job_title, area_id, keywords, import_file, export_file, color, output)
+	print('~ Please wait while the program configures the search parameters...')
+	findjobs(*sysargs)
 
 if __name__ == '__main__':
 	main()
