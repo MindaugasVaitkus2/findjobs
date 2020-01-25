@@ -4,10 +4,10 @@ Search job boards in seconds for listings matching your criteria.
 
 ```bash
 # search for "Financial Analyst" jobs in New York, NY
-$ python3 findjobs.py -j financial analyst -a new york
+$ python3 findjobs.py
 ```
 
-Finding a new job is stressful enough, and scrolling through websites for hours only makes the process more difficult. The objective of this Python package is to make your job searching experience at least a little bit easier. Searching all the major job boards for listings matching critera tailored to your needs, forget the hassle and find listings for jobs in different professions or locations, and all in matter of seconds.
+If you found this program to be useful, consider pledging me on Patreon @ *https://www.patreon.com/colingall*
 
 ## Requirements
 
