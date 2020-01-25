@@ -69,16 +69,13 @@ List of all available options and parameters for user to select when running Fin
 [-e --export EXPFILE]       Text or CSV file (including path & extension for exporting new search results.
 ```
 
-## Development
+## Support
 
 Created by Colin Gallagher *@colin-gall*
 
-If you found this program to be useful, consider pledging on Patreon.
-
-## Support
-
-* Email: colin.gall@outlook.com
-* Repository: https://github.com/colin-gall/findjobs
+* Email: *colin.gall@outlook.com*
+* Patreon: *https://www.patreon.com/colingall*
+* Repository: *https://github.com/colin-gall/findjobs*
 
 ## License
 
