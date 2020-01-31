@@ -18,8 +18,6 @@ import configparser
 from pathlib import Path
 
 import requests
-import configparser
-from pathlib import Path
 from bs4 import BeautifulSoup as bs
 from uszipcode import SearchEngine, Zipcode
 
@@ -28,7 +26,7 @@ __short__ = 'Job Search Optimization'
 __long__ = 'Search job boards in seconds for listings matching your criteria.'
 __author__ = 'Colin Gallagher'
 __repo__ = 'https://github.com/colin-gall/findjobs'
-__version__ = '0.0.9'
+__version__ = '1.0.1'
 
 __os__ = os.name
 __platform__ = sys.platform

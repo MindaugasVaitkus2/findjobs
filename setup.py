@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-VERSION = '0.0.9'
+VERSION = '1.0.1'
 
 from pathlib import Path
 from setuptools import find_packages, setup
